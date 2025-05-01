@@ -1,0 +1,7 @@
+.venv
+config.ini
+__pycache__
+brainiac_2.egg-info
+dist
+
+
