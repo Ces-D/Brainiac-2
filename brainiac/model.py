@@ -74,7 +74,7 @@ class BrainiacConfig:
                 return author
 
 
-class Genre(Enum):
+class Genre(str, Enum):
     Opinion = "OPINION"
     Technology = "TECHNOLOGY"
     Lifestyle = "LIFESTYLE"
