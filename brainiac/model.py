@@ -3,7 +3,7 @@ import os
 import pathlib
 from configparser import ConfigParser
 from enum import Enum
-from typing import Dict, List, Optional
+from typing import Dict, List
 
 from pydantic import BaseModel
 
@@ -24,9 +24,8 @@ class ConfigKey(Enum):
 
 
 class BrainiacConfig:
-    def __init__(self, loc: Optional[str]):
-        if loc is None:
-            loc = "config.ini"
+    def __init__(self):
+        loc = os.path.expanduser("~/.config/brainiac2/config.ini")
         parser = ConfigParser()
         found = parser.read(loc)
         if not found:

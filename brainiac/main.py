@@ -2,7 +2,6 @@ import asyncio
 import datetime
 import json
 from pathlib import Path
-from typing import Optional
 
 import click
 
@@ -32,8 +31,8 @@ def cli():
     pass
 
 
-async def copy(src: str, conf: Optional[str]) -> None:
-    config = BrainiacConfig(conf)
+async def copy(src: str) -> None:
+    config = BrainiacConfig()
     model = Ai(
         api_key=config.get(ConfigKey.OPENAI_API_KEY),
         model=config.get(ConfigKey.OPENAI_MODEL),
@@ -98,14 +97,13 @@ async def copy(src: str, conf: Optional[str]) -> None:
 
 @click.command()
 @click.argument("src", required=1)
-@click.option("--conf", default=None, help="Path to the brainiac2 config file")
-def copy_async(src, conf):
+def copy_async(src):
     """
     Copy a file from one location to another while adding the metadata to it
 
     SRC: Location of the file to be copied
     """
-    asyncio.run(copy(src, conf))
+    asyncio.run(copy(src))
 
 
 cli.add_command(copy_async)
