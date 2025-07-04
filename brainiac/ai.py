@@ -1,3 +1,5 @@
+import json
+
 import openai
 from openai.types.responses import ResponseFormatTextJSONSchemaConfigParam
 
@@ -19,13 +21,36 @@ class Ai:
             "name": MetadataGeneratedResponse.__name__,
             "schema": schema,
             "type": "json_schema",
-            "description": "Metadata on the article represented in json",
+            "description": "Metadata of the article represented in json",
             "strict": True,
         }
+        instructions = """You are an expert editorial assistant. When given article content, you must produce four outputs in JSON format:
+        1. "title":
+           – A concise, engaging headline (≤ 60 characters) that captures the essence of the topic and the flavor of its genre.
+
+        2. "description":
+           – A 1–2 sentence summary (≤ 200 characters) that expands on the core idea and clearly reflects the tone and perspective of the chosen genre.
+
+        3. "keywords":
+           – An array of 5–8 relevant, high-impact keywords or short phrases that will help optimize discoverability.
+
+        4. "genre":
+           – One of exactly these three strings: OPINION, TECHNOLOGY, LIFESTYLE.
+           – Choose the genre that best fits the topic and ensure both "title" and "description" are written in that genre’s style.
+
+        Requirements:
+        - Always output valid JSON with exactly these four keys.
+        - Do not include any additional keys or commentary.
+        - Ensure the tone of the title and description matches the genre:
+          • OPINION: bold, personal, provocative
+          • TECHNOLOGY: precise, informative, forward-looking
+          • LIFESTYLE: warm, relatable, experiential
+        """
+
         generated = await self._client.responses.create(
             model=self._model,
-            instructions="You are a highly skilled editorial analyst. Your task is to extract structured information from articles while maintaining a neutral, accurate tone. Your responses must be concise, consistent, and suitable for indexing and content classification.",
-            input=f"Analyze the following article and extract the following:\n\n1. **Keywords**: Provide 5 to 10 relevant keywords that represent the core themes, topics, or emotional tones of the article. Avoid overly generic words (e.g., 'article', 'topic') and do not repeat word stems (e.g., 'technology' and 'technological').\n\n2. **Genre**: Label the genre or type of article (e.g., opinion, feature, editorial, satire, instructional). Be specific.\n\n3. **Title**: Create a clear and compelling title that reflects both the tone and content. Avoid vague or generic phrasing. Do not use colons unless essential.\n\n4. **Summary**: Write a 2–5 sentence summary that:\n   - Captures the core idea or message\n   - Reflects the emotional tone (e.g., hopeful, critical, nostalgic)\n   - Describes the likely intention of the author (e.g., to inform, to persuade, to entertain)\n\n**Guardrails:**\n- Do NOT include your own opinions.\n- Avoid exaggeration or clickbait-style wording.\n- Keep language professional and neutral.\n- Assume the audience is informed but not expert.\n\nThe article is delimited by triple quotes:\n\n\"\"\"\n{article}\n\"\"\"",
+            instructions=instructions,
+            input=article,
             text={"format": text_config},
         )
 
@@ -47,10 +72,57 @@ class Ai:
             "description": "Interest metadata on the article represented in json",
             "strict": True,
         }
+
+        instructions = """
+        You are an editorial assistant. You will receive a JSON object with two fields:
+          • “articles”: an array of article metadata objects
+          • “target”: a single article metadata object
+
+        Each metadata object has:
+          – title (string)
+          – description (string)
+          – keywords (array of strings)
+          – slug (string)
+          – genre (one of OPINION, TECHNOLOGY, LIFESTYLE)
+
+        Your job is to compute semantic similarity between “target” and each object in “articles” (using title, description, keywords, and genre), then return the two most related articles.
+        Output **only** a JSON array of their slugs, ordered from most to next-most related. No extra text.
+
+        USER (example payload):
+        ```json
+        {
+          "articles": [
+            {
+              "title": "How AI is Transforming Fintech",
+              "description": "An overview of AI applications in financial services...",
+              "keywords": ["AI", "fintech", "automation"],
+              "slug": "ai-fintech",
+              "genre": "TECHNOLOGY"
+            },
+            {
+              "title": "My Morning Routine",
+              "description": "A personal look into my healthy habits...",
+              "keywords": ["wellness", "morning", "routine"],
+              "slug": "morning-routine",
+              "genre": "LIFESTYLE"
+            },
+            {
+              "title": "Opinion: The Future of Work",
+              "description": "Why remote collaboration will redefine careers...",
+              "keywords": ["remote", "work", "opinion"],
+              "slug": "future-of-work",
+              "genre": "OPINION"
+            }
+          ],
+          "target":"**The Rise of AuroraMind: AI’s Next Frontier**
+          In a quiet lab on the outskirts of Copenhagen, researchers have unveiled AuroraMind, an AI system capable of composing symphonies in the style of Beethoven and analyzing weather patterns to predict local microclimates with uncanny precision. Unlike its predecessors, AuroraMind blends a transformer-based language model with a novel temporal-spatial neural network, enabling it to learn both linguistic nuance and real-world dynamics simultaneously.
+            "
+        }
+        """
         generated = await self._client.responses.create(
             model=self._model,
-            instructions="You are an assistant that processes article metadata and generates structured relationship mappings between articles based on shared interests and themes.You will receive a json collection of articles, each with its own slug, title, description, and interest metadata. Your task is to match the article to a list of related articles. You will consider the following factors:\n\n1. **Keywords**: Articles with similar keywords are likely to be related.\n2. **Genre**: Articles of the same genre may share themes or topics.\n3. **Title**: Articles with similar titles may be related.\n4. **Description**: Articles with similar descriptions may be related.",
-            input=f'YOUR OUTPUT MUST FOLLOW THESE STRICT RULES:\nReturn only a single valid JSON object that contains a list of related articles.\nEach item of the list  must be a slug from the provided list of articles.\nThere must be a list of objects, each the slug of a related article provided\n Never recommend the same article as a related article (i.e., the slug of the article must not appear in its own related_articles list).\n Do not include any text, explanation, or markdown — only return the JSON object.\nIt is possible to not have any related articles.\n\nThe aggregate collection fo articles is delimited by triple quotes:\n\n"""\n{agg_metadata}\n"""\n\nThe article is delimited by triple quotes:\n\n"""\n{article}\n"""',
+            instructions=instructions,
+            input=json.dumps({"articles": agg_metadata, "target": article}),
             text={"format": text_config},
         )
 

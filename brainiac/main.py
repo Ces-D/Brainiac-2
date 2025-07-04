@@ -8,8 +8,7 @@ import click
 from brainiac.ai import Ai
 from brainiac.model import (
     DATETIME_FORMAT,
-    AnalyticsMetadata,
-    BrainiacConfig,
+    AnalyticsMetadata, BrainiacConfig,
     ConfigKey,
     InterestMetadata,
     Metadata,
@@ -62,7 +61,12 @@ async def copy(src: str) -> None:
         model.create_interest_metadata_fields(
             agg_metadata=json.dumps(
                 list(
-                    map(lambda x: x.model_dump(), aggregate_metadata.metadata.values())
+                    map(
+                        lambda x: x.model_dump(
+                            exclude={"author": True, "analytics": True}
+                        ),
+                        aggregate_metadata.metadata.values(),
+                    )
                 )
             ),
             article=article_content,
